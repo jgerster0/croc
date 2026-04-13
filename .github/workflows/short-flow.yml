@@ -45,6 +45,7 @@ jobs:
           name: test-logs
           path: |
             verilator/rv32i/*.log
+            verilator/rv32i-isa/*.log
             verilator/rv32e/*.log
         continue-on-error: true
 
