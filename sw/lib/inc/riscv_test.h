@@ -7,9 +7,9 @@
     addi a0, x0, 1; \
     addi a1, x0, 1; \
     addi sp, sp, -4; \
-    sw   ra, 0(sp); \
+    sw ra, 0(sp); \
     call core_mode_switch; \
-    lw   ra, 0(sp); \
+    lw ra, 0(sp); \
     addi sp, sp, 4; \
     .endm
 #else
