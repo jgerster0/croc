@@ -40,7 +40,7 @@ INCDIR   ?= lib/inc
 # Collecting source files
 LIB_SOURCES         := $(wildcard $(SRCDIR)/*.[cS])
 TOP_SOURCES         := $(filter-out $(CRT0), $(wildcard *.[cS]))
-TEST_SOURCES        := $(wildcard test/*.[cS])
+TEST_SOURCES        := $(wildcard test/*.[cS]) $(wildcard test/isa/*.[cS])
 COMMON_TEST_SOURCES := $(filter-out test/test_rv32e_%,$(TEST_SOURCES))
 PROG_SOURCES        ?= $(TOP_SOURCES) $(TEST_SOURCES)
 
