@@ -1,9 +1,22 @@
 #ifndef _ENV_RISCV_TEST_H
 #define _ENV_RISCV_TEST_H
 
+#ifdef RELIABLE_MODE
+#define RVTEST_RV32U \
+    .macro init; \
+    addi a0, x0, 1; \
+    addi a1, x0, 1; \
+    addi sp, sp, -4; \
+    sw   ra, 0(sp); \
+    call core_mode_switch; \
+    lw   ra, 0(sp); \
+    addi sp, sp, 4; \
+    .endm
+#else
 #define RVTEST_RV32U \
     .macro init; \
     .endm
+#endif
 
 #define TESTNUM gp
 

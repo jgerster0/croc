@@ -19,9 +19,10 @@ RISCV_AS      ?= $(RISCV_PREFIX)as
 RISCV_AR      ?= $(RISCV_PREFIX)ar
 RISCV_LD      ?= $(RISCV_PREFIX)ld
 RISCV_STRIP   ?= $(RISCV_PREFIX)strip
+EXTRA_CFLAGS  ?=
 
 # Compiler and linker flags
-RISCV_FLAGS ?= -march=$(RISCV_MARCH) -mabi=$(RISCV_MABI) -mcmodel=medany \
+RISCV_FLAGS ?= -march=$(RISCV_MARCH) $(EXTRA_CFLAGS) -mabi=$(RISCV_MABI) -mcmodel=medany \
 	-static -std=gnu99 -Os -nostdlib -fno-builtin -ffreestanding -mno-relax
 RISCV_CCFLAGS ?= $(RISCV_FLAGS) -Iinclude -I$(INCDIR) -I$(CURDIR)
 RISCV_LDFLAGS ?= -static -nostartfiles -lm -lgcc $(RISCV_FLAGS)
@@ -116,7 +117,8 @@ rv32e:
 		RISCV_MABI=ilp32e \
 		BINDIR=$(BINDIR_BASE)/rv32e \
 		BUILDDIR=$(BUILDDIR_BASE)/rv32e \
-		PROG_SOURCES="$(TOP_SOURCES) $(TEST_SOURCES)"
+		PROG_SOURCES="$(TOP_SOURCES) $(TEST_SOURCES)" \
+		EXTRA_CFLAGS="-DRELIABLE_MODE"
 
 clean:
 	rm -rf $(BINDIR_BASE) $(BUILDDIR_BASE)
