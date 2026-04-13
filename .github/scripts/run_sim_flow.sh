@@ -57,7 +57,8 @@ cd verilator
 
 "$SCRIPT_DIR/run_tests.sh" \
     --hexdir ../sw/bin/rv32i/test/isa \
-    --label rv32i-isa
+    --label rv32i-isa \
+    --filter *
 
 # run RV32E tests
 "$SCRIPT_DIR/run_tests.sh" \
