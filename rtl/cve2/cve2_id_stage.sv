@@ -44,6 +44,7 @@ module cve2_id_stage #(
 
   // Jumps and branches
   input  logic                      branch_decision_i,
+  input  logic [31:0]               branch_target_ex_i,
 
   // IF and ID stage signals
   output logic                      pc_set_o,
@@ -365,6 +366,10 @@ module cve2_id_stage #(
       REL_SC_ALU: begin
         rel_current_result.cmp_val0 = result_ex_i;
       end
+      REL_BRANCH: begin
+        rel_current_result.cmp_val0 = {31'b0, branch_set_raw_q};
+        rel_current_result.cmp_val1 = branch_target_ex_i;
+      end
       default:;
     endcase
   end
@@ -416,7 +421,7 @@ module cve2_id_stage #(
     end
   end
 
-  assign rel_instr_supported = (rel_instr_class_dec == REL_SC_ALU);
+  assign rel_instr_supported = (rel_instr_class_dec == REL_SC_ALU || rel_instr_class_dec == REL_BRANCH);
 
   assign rel_do_capture = reliable_mode_i &&
                           (rel_phase_q == PRIMARY) &&
@@ -848,7 +853,7 @@ module cve2_id_stage #(
   // Branches always take two cycles in fixed time execution mode, with or without the branch
   // target ALU (to avoid a path from the branch decision into the branch target ALU operand
   // muxing).
-  assign branch_set_raw      = branch_set_raw_q;
+  assign branch_set_raw      = branch_set_raw_q & rel_commit;
 
 
   // Track whether the current instruction in ID/EX has done a branch or jump set.
@@ -913,7 +918,7 @@ module cve2_id_stage #(
             branch_in_dec: begin
               // cond branch operation
               // All branches take two cycles in fixed time execution mode, regardless of branch
-              // condition.
+              // condition. -> this is not true right now (no branch is single cycle, branch two)
               // SEC_CM: CORE.DATA_REG_SW.SCA
               id_fsm_d         = (branch_decision_i) ?
                                      MULTI_CYCLE : FIRST_CYCLE;
