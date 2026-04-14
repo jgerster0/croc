@@ -370,6 +370,10 @@ module cve2_id_stage #(
         rel_current_result.cmp_val0 = {31'b0, branch_set_raw_q};
         rel_current_result.cmp_val1 = branch_target_ex_i;
       end
+      REL_JUMP: begin
+        rel_current_result.cmp_val0 = rf_we_dec ? result_ex_i : '0;
+        rel_current_result.cmp_val1 = branch_target_ex_i;
+      end
       default:;
     endcase
   end
@@ -421,7 +425,9 @@ module cve2_id_stage #(
     end
   end
 
-  assign rel_instr_supported = (rel_instr_class_dec == REL_SC_ALU || rel_instr_class_dec == REL_BRANCH);
+  assign rel_instr_supported = (rel_instr_class_dec == REL_SC_ALU) || 
+                               (rel_instr_class_dec == REL_BRANCH) ||
+                               (rel_instr_class_dec == REL_JUMP);
 
   assign rel_do_capture = reliable_mode_i &&
                           (rel_phase_q == PRIMARY) &&
@@ -931,7 +937,7 @@ module cve2_id_stage #(
               // uncond branch operation
               id_fsm_d      = MULTI_CYCLE;
               stall_jump    = 1'b1;
-              jump_set_raw  = jump_set_dec;
+              jump_set_raw  = jump_set_dec & rel_commit;
             end
             alu_multicycle_dec: begin
               stall_alu     = 1'b1;
