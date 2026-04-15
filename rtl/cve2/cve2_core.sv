@@ -400,7 +400,6 @@ module cve2_core import cve2_pkg::*; #(
 
     // Jumps and branches
     .branch_decision_i(branch_decision),
-    .branch_target_ex_i(branch_target_ex),
 
     // IF and ID control signals
     .instr_first_cycle_id_o(instr_first_cycle_id),

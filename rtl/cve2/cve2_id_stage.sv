@@ -44,7 +44,6 @@ module cve2_id_stage #(
 
   // Jumps and branches
   input  logic                      branch_decision_i,
-  input  logic [31:0]               branch_target_ex_i,
 
   // IF and ID stage signals
   output logic                      pc_set_o,
@@ -364,18 +363,28 @@ module cve2_id_stage #(
 
     unique case (rel_instr_class_dec)
       REL_SC_ALU: begin
-        rel_current_result.cmp_val0 = result_ex_i;
+        rel_current_result.cmp_val0 = result_ex_i; // rd
       end
       REL_BRANCH: begin
-        rel_current_result.cmp_val0 = {31'b0, branch_set_raw_q};
-        rel_current_result.cmp_val1 = branch_target_ex_i;
+        rel_current_result.cmp_val0 = {31'b0, branch_set_raw_q}; // branch decision
+        rel_current_result.cmp_val1 = result_ex_i; // branch target
       end
       REL_JUMP: begin
-        rel_current_result.cmp_val0 = rf_we_dec ? result_ex_i : '0;
-        rel_current_result.cmp_val1 = branch_target_ex_i;
+        rel_current_result.cmp_val0 = result_ex_q; // jump target
+        rel_current_result.cmp_val1 = result_ex_i; // rd = PC + 4
       end
       default:;
     endcase
+  end
+
+  // TODO: replace this (wastes a lot of area)
+  logic [31:0] result_ex_q;
+  always_ff @(posedge clk_i or negedge rst_ni) begin
+    if (!rst_ni) begin
+      result_ex_q <= '0;
+    end else begin
+      result_ex_q <= result_ex_i;
+    end
   end
 
   // rel fsm next state logic
