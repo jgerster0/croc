@@ -2,6 +2,18 @@
 .globl main
 
 main:
+    la   t0, target
+    addi t0, t0, -4
+    jalr x5, t0, 4      # jump to target, write PC+4 into x5
+    nop
+    nop
+    nop
+    nop
+target:
+    nop
+    nop
+    nop
+
     # switch to RV32E reliable
     addi a0, x0, 1      # rv32e
     addi a1, x0, 1      # reliability on

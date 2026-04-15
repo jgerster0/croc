@@ -312,6 +312,10 @@ module cve2_id_stage #(
   logic rel_do_capture;
   logic rel_do_compare;
 
+  logic rel_ls_supported;
+  logic rel_do_capture_ls;
+  logic rel_do_compare_ls;
+
   logic stall_rel;
   logic rel_commit;
 
@@ -373,6 +377,13 @@ module cve2_id_stage #(
         rel_current_result.cmp_val0 = result_ex_q; // jump target
         rel_current_result.cmp_val1 = result_ex_i; // rd = PC + 4
       end
+      REL_LOAD: begin
+        rel_current_result.cmp_val0 = result_ex_i; // addr
+      end
+      REL_STORE: begin
+        rel_current_result.cmp_val0 = result_ex_i; // addr
+        rel_current_result.cmp_val1 = lsu_wdata_o; // store data
+      end
       default:;
     endcase
   end
@@ -401,10 +412,10 @@ module cve2_id_stage #(
       rel_primary_result_d = '0;
       rel_error_d          = 1'b0;
     end else if (!rel_error_q) begin
-      if (rel_do_capture) begin
+      if (rel_do_capture | rel_do_capture_ls) begin
         rel_phase_d          = SECONDARY;
         rel_primary_result_d = rel_current_result;
-      end else if (rel_do_compare) begin
+      end else if (rel_do_compare | rel_do_compare_ls) begin
         if (rel_match) begin
           rel_phase_d          = PRIMARY;
           rel_primary_result_d = '0;
@@ -424,17 +435,17 @@ module cve2_id_stage #(
       if (rel_error_q) begin
         stall_rel  = 1'b1;
         rel_commit = 1'b0;
-      end else if (rel_do_capture) begin
+      end else if (rel_do_capture | rel_do_capture_ls) begin
         stall_rel  = 1'b1;
         rel_commit = 1'b0;
-      end else if (rel_do_compare && !rel_match) begin
+      end else if ((rel_do_compare | rel_do_compare_ls) && !rel_match) begin
         stall_rel  = 1'b1;
         rel_commit = 1'b0;
       end
     end
   end
 
-  assign rel_instr_supported = (rel_instr_class_dec == REL_SC_ALU) || 
+  assign rel_instr_supported = (rel_instr_class_dec == REL_SC_ALU) ||
                                (rel_instr_class_dec == REL_BRANCH) ||
                                (rel_instr_class_dec == REL_JUMP);
 
@@ -447,6 +458,19 @@ module cve2_id_stage #(
                           (rel_phase_q == SECONDARY) &&
                           rel_instr_supported &&
                           instr_done_base;
+
+  assign rel_ls_supported = (rel_instr_class_dec == REL_LOAD) ||
+                            (rel_instr_class_dec == REL_STORE);
+
+  assign rel_do_capture_ls = reliable_mode_i &&
+                             (rel_phase_q == PRIMARY) &&
+                             rel_ls_supported &&
+                             instr_executing && instr_first_cycle;
+
+  assign rel_do_compare_ls = reliable_mode_i &&
+                             (rel_phase_q == SECONDARY) &&
+                             rel_ls_supported &&
+                             instr_executing && instr_first_cycle;
 
   assign rel_match = (rel_primary_result_q.cmp_val0 == rel_current_result.cmp_val0) &&
                      (rel_primary_result_q.cmp_val1 == rel_current_result.cmp_val1);
@@ -821,7 +845,7 @@ module cve2_id_stage #(
 
   assign multdiv_en_dec   = mult_en_dec | div_en_dec;
 
-  assign lsu_req         = instr_executing ? data_req_allowed & lsu_req_dec  : 1'b0;
+  assign lsu_req         = instr_executing ? data_req_allowed & lsu_req_dec & rel_commit : 1'b0;
   assign mult_en_id      = instr_executing ? mult_en_dec                     : 1'b0;
   assign div_en_id       = instr_executing ? div_en_dec                      : 1'b0;
 
@@ -915,9 +939,10 @@ module cve2_id_stage #(
         FIRST_CYCLE: begin
           unique case (1'b1)
             lsu_req_dec: begin
-              begin
-                // LSU operation
-                id_fsm_d    = MULTI_CYCLE;
+              if (rel_do_capture_ls) begin
+                id_fsm_d = FIRST_CYCLE;
+              end else begin
+                id_fsm_d = MULTI_CYCLE;
               end
             end
             multdiv_en_dec: begin
