@@ -294,6 +294,7 @@ module cve2_id_stage #(
   typedef struct packed {
     rel_instr_class_e instr_class;
     logic [31:0]      cmp_val0;
+    logic [31:0]      cmp_val1;
   } rel_result_t;
 
   // rel fsm register
@@ -359,6 +360,7 @@ module cve2_id_stage #(
       REL_BRANCH: rel_sub_op_rdy = ex_valid_i;
       REL_JUMP:   rel_sub_op_rdy = ex_valid_i;
       REL_LOAD:   rel_sub_op_rdy = (id_fsm_q == FIRST_CYCLE);
+      REL_STORE:  rel_sub_op_rdy = (id_fsm_q == FIRST_CYCLE);
       default:    rel_sub_op_rdy = 1'b0;
     endcase
   end
@@ -367,6 +369,7 @@ module cve2_id_stage #(
   always_comb begin
     rel_current_result.instr_class = rel_instr_class_dec;
     rel_current_result.cmp_val0 = '0;
+    rel_current_result.cmp_val1 = '0;
 
     unique case (rel_instr_class_dec)
       REL_SC_ALU: begin
@@ -380,6 +383,10 @@ module cve2_id_stage #(
       end
       REL_LOAD: begin
         rel_current_result.cmp_val0 = result_ex_i; // effective address
+      end
+      REL_STORE: begin
+        rel_current_result.cmp_val0 = result_ex_i; // effective address
+        rel_current_result.cmp_val1 = lsu_wdata_o; // data
       end
       default:;
     endcase
@@ -435,7 +442,8 @@ module cve2_id_stage #(
   assign rel_instr_supported = (rel_instr_class_dec == REL_SC_ALU) || 
                                (rel_instr_class_dec == REL_BRANCH) ||
                                (rel_instr_class_dec == REL_JUMP)   || 
-                               (rel_instr_class_dec == REL_LOAD);
+                               (rel_instr_class_dec == REL_LOAD)   ||
+                               (rel_instr_class_dec == REL_STORE);
 
   assign rel_do_capture = reliable_mode_i &&
                           (rel_phase_q == PRIMARY) &&
@@ -447,7 +455,8 @@ module cve2_id_stage #(
                           rel_instr_supported &&
                           rel_sub_op_rdy;
 
-  assign rel_match = (rel_primary_result_q.cmp_val0 == rel_current_result.cmp_val0);
+  assign rel_match = (rel_primary_result_q.cmp_val0 == rel_current_result.cmp_val0) &&
+                     (rel_primary_result_q.cmp_val1 == rel_current_result.cmp_val1);
 
   assign rf_rbank_remap_a_o = (rel_phase_q == SECONDARY);
   assign rf_rbank_remap_b_o = (rel_phase_q == SECONDARY);
@@ -1124,10 +1133,12 @@ module cve2_id_stage #(
     always_ff @(posedge clk_i) begin
       if (rst_ni && rel_do_compare && !rel_match) begin
         $fatal(1,
-              "REL mismatch: class=%0d primary=0x%08h secondary=0x%08h pc=0x%08h",
+              "REL mismatch: class=%0d primary=(0x%08h, 0x%08h) secondary=(0x%08h, 0x%08h) pc=0x%08h",
               rel_primary_result_q.instr_class,
               rel_primary_result_q.cmp_val0,
+              rel_primary_result_q.cmp_val1,
               rel_current_result.cmp_val0,
+              rel_current_result.cmp_val1,
               pc_id_i);
       end
     end

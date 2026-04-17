@@ -4,7 +4,7 @@
 main:
     li t0, 0xDEADBEEF
     sw   t0, -4(sp)
-    lw   t1, -5(sp)
+    lw   t1, -4(sp)
 
     # switch to RV32E reliable
     addi a0, x0, 1      # rv32e
