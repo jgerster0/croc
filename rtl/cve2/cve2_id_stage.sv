@@ -294,7 +294,6 @@ module cve2_id_stage #(
   typedef struct packed {
     rel_instr_class_e instr_class;
     logic [31:0]      cmp_val0;
-    logic [31:0]      cmp_val1;
   } rel_result_t;
 
   // rel fsm register
@@ -309,6 +308,7 @@ module cve2_id_stage #(
   rel_result_t rel_current_result;
 
   logic rel_instr_supported;
+  logic rel_sub_op_rdy;
   logic rel_do_capture;
   logic rel_do_compare;
 
@@ -355,36 +355,33 @@ module cve2_id_stage #(
     endcase
   end
 
+  always_comb begin
+    rel_sub_op_rdy = 1'b0;
+    unique case (rel_instr_class_dec)
+      REL_SC_ALU: rel_sub_op_rdy = instr_done_base;
+      REL_BRANCH: rel_sub_op_rdy = ex_valid_i;
+      REL_JUMP:   rel_sub_op_rdy = ex_valid_i;
+      default:    rel_sub_op_rdy = 1'b0;
+    endcase
+  end
+
   // current architectural result of instruction class
   always_comb begin
     rel_current_result.instr_class = rel_instr_class_dec;
     rel_current_result.cmp_val0 = '0;
-    rel_current_result.cmp_val1 = '0;
 
     unique case (rel_instr_class_dec)
       REL_SC_ALU: begin
-        rel_current_result.cmp_val0 = result_ex_i; // rd
+        rel_current_result.cmp_val0 = result_ex_i;
       end
       REL_BRANCH: begin
-        rel_current_result.cmp_val0 = {31'b0, branch_set_raw_q}; // branch decision
-        rel_current_result.cmp_val1 = result_ex_i; // branch target
+        rel_current_result.cmp_val0 = (id_fsm_q == FIRST_CYCLE) ? {31'b0, branch_decision_i} : result_ex_i;
       end
       REL_JUMP: begin
-        rel_current_result.cmp_val0 = result_ex_q; // jump target
-        rel_current_result.cmp_val1 = result_ex_i; // rd = PC + 4
+        rel_current_result.cmp_val0 = result_ex_i;
       end
       default:;
     endcase
-  end
-
-  // TODO: replace this (wastes a lot of area)
-  logic [31:0] result_ex_q;
-  always_ff @(posedge clk_i or negedge rst_ni) begin
-    if (!rst_ni) begin
-      result_ex_q <= '0;
-    end else begin
-      result_ex_q <= result_ex_i;
-    end
   end
 
   // rel fsm next state logic
@@ -441,15 +438,14 @@ module cve2_id_stage #(
   assign rel_do_capture = reliable_mode_i &&
                           (rel_phase_q == PRIMARY) &&
                           rel_instr_supported &&
-                          instr_done_base;
+                          rel_sub_op_rdy;
 
   assign rel_do_compare = reliable_mode_i &&
                           (rel_phase_q == SECONDARY) &&
                           rel_instr_supported &&
-                          instr_done_base;
+                          rel_sub_op_rdy;
 
-  assign rel_match = (rel_primary_result_q.cmp_val0 == rel_current_result.cmp_val0) &&
-                     (rel_primary_result_q.cmp_val1 == rel_current_result.cmp_val1);
+  assign rel_match = (rel_primary_result_q.cmp_val0 == rel_current_result.cmp_val0);
 
   assign rf_rbank_remap_a_o = (rel_phase_q == SECONDARY);
   assign rf_rbank_remap_b_o = (rel_phase_q == SECONDARY);
@@ -464,7 +460,7 @@ module cve2_id_stage #(
   always_ff @(posedge clk_i or negedge rst_ni) begin : id_pipeline_reg
     if (!rst_ni) begin
       id_fsm_q <= FIRST_CYCLE;
-    end else if (instr_executing) begin
+    end else if (instr_executing && !stall_rel) begin
       id_fsm_q <= id_fsm_d;
     end
   end
@@ -860,7 +856,7 @@ module cve2_id_stage #(
   always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
       branch_set_raw_q <= 1'b0;
-    end else begin
+    end else if (!stall_rel) begin
       branch_set_raw_q <= branch_set_raw_d;
     end
   end
@@ -868,7 +864,7 @@ module cve2_id_stage #(
   // Branches always take two cycles in fixed time execution mode, with or without the branch
   // target ALU (to avoid a path from the branch decision into the branch target ALU operand
   // muxing).
-  assign branch_set_raw      = branch_set_raw_q & rel_commit;
+  assign branch_set_raw      = branch_set_raw_q & rel_commit & (id_fsm_q == MULTI_CYCLE);
 
 
   // Track whether the current instruction in ID/EX has done a branch or jump set.
@@ -1126,12 +1122,10 @@ module cve2_id_stage #(
     always_ff @(posedge clk_i) begin
       if (rst_ni && rel_do_compare && !rel_match) begin
         $fatal(1,
-              "REL mismatch: class=%0d primary=(0x%08h,0x%08h) secondary=(0x%08h,0x%08h) pc=0x%08h",
+              "REL mismatch: class=%0d primary=0x%08h secondary=0x%08h pc=0x%08h",
               rel_primary_result_q.instr_class,
               rel_primary_result_q.cmp_val0,
-              rel_primary_result_q.cmp_val1,
               rel_current_result.cmp_val0,
-              rel_current_result.cmp_val1,
               pc_id_i);
       end
     end
