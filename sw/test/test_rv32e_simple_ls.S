@@ -2,9 +2,9 @@
 .globl main
 
 main:
-    addi t0, sp, 0
+    li t0, 0xDEADBEEF
     sw   t0, -4(sp)
-    lw   t0, -4(sp)
+    lw   t1, -5(sp)
 
     # switch to RV32E reliable
     addi a0, x0, 1      # rv32e
@@ -14,10 +14,6 @@ main:
     call core_mode_switch
     lw   ra, 0(sp)
     addi sp, sp, 4
-    
-    # random instructions for debugging
-    li t0, 0xDEADBEEE
-    addi x13, t0, 1
 
     # return 0
     li a0, 0

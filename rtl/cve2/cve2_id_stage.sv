@@ -341,8 +341,6 @@ module cve2_id_stage #(
 
   // rel instruction class decoder
   always_comb begin
-    rel_instr_class_dec = REL_NONE;
-
     unique case (1'b1)
       single_cycle_ex_dec:   rel_instr_class_dec = REL_SC_ALU;
       branch_in_dec:         rel_instr_class_dec = REL_BRANCH;
@@ -356,11 +354,11 @@ module cve2_id_stage #(
   end
 
   always_comb begin
-    rel_sub_op_rdy = 1'b0;
     unique case (rel_instr_class_dec)
       REL_SC_ALU: rel_sub_op_rdy = instr_done_base;
       REL_BRANCH: rel_sub_op_rdy = ex_valid_i;
       REL_JUMP:   rel_sub_op_rdy = ex_valid_i;
+      REL_LOAD:   rel_sub_op_rdy = (id_fsm_q == FIRST_CYCLE);
       default:    rel_sub_op_rdy = 1'b0;
     endcase
   end
@@ -372,13 +370,16 @@ module cve2_id_stage #(
 
     unique case (rel_instr_class_dec)
       REL_SC_ALU: begin
-        rel_current_result.cmp_val0 = result_ex_i;
+        rel_current_result.cmp_val0 = result_ex_i; // rd
       end
       REL_BRANCH: begin
-        rel_current_result.cmp_val0 = (id_fsm_q == FIRST_CYCLE) ? {31'b0, branch_decision_i} : result_ex_i;
+        rel_current_result.cmp_val0 = (id_fsm_q == FIRST_CYCLE) ? {31'b0, branch_decision_i} : result_ex_i; // 1. branch decision 2. branch target
       end
       REL_JUMP: begin
-        rel_current_result.cmp_val0 = result_ex_i;
+        rel_current_result.cmp_val0 = result_ex_i; // 1. jump target 2. rd = PC + 4
+      end
+      REL_LOAD: begin
+        rel_current_result.cmp_val0 = result_ex_i; // effective address
       end
       default:;
     endcase
@@ -433,7 +434,8 @@ module cve2_id_stage #(
 
   assign rel_instr_supported = (rel_instr_class_dec == REL_SC_ALU) || 
                                (rel_instr_class_dec == REL_BRANCH) ||
-                               (rel_instr_class_dec == REL_JUMP);
+                               (rel_instr_class_dec == REL_JUMP)   || 
+                               (rel_instr_class_dec == REL_LOAD);
 
   assign rel_do_capture = reliable_mode_i &&
                           (rel_phase_q == PRIMARY) &&
@@ -460,7 +462,7 @@ module cve2_id_stage #(
   always_ff @(posedge clk_i or negedge rst_ni) begin : id_pipeline_reg
     if (!rst_ni) begin
       id_fsm_q <= FIRST_CYCLE;
-    end else if (instr_executing && !stall_rel) begin
+    end else if (instr_executing & rel_commit) begin
       id_fsm_q <= id_fsm_d;
     end
   end
@@ -821,7 +823,7 @@ module cve2_id_stage #(
   assign mult_en_id      = instr_executing ? mult_en_dec                     : 1'b0;
   assign div_en_id       = instr_executing ? div_en_dec                      : 1'b0;
 
-  assign lsu_req_o               = lsu_req;
+  assign lsu_req_o               = lsu_req & rel_commit;
   assign lsu_we_o                = lsu_we;
   assign lsu_type_o              = lsu_type;
   assign lsu_sign_ext_o          = lsu_sign_ext;
@@ -856,7 +858,7 @@ module cve2_id_stage #(
   always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
       branch_set_raw_q <= 1'b0;
-    end else if (!stall_rel) begin
+    end else if (rel_commit) begin
       branch_set_raw_q <= branch_set_raw_d;
     end
   end
