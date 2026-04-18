@@ -13,6 +13,9 @@ main:
     
     # random instructions for debugging
     li t0, 0xDEADBEEE
+    nop
+    nop
+    nop
     addi x13, t0, 1
 
     # return 0

@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v4.0.0-prealpha (a6aae77) (w)1999-2022 BSI
-[*] Sat Apr 18 12:15:35 2026
+[*] Sat Apr 18 13:38:24 2026
 [*]
 [dumpfile] "/fosic/designs/croc/verilator/croc.fst"
-[dumpfile_mtime] "Sat Apr 18 12:07:09 2026"
-[dumpfile_size] 1270438
+[dumpfile_mtime] "Sat Apr 18 13:36:28 2026"
+[dumpfile_size] 1263008
 [savefile] "/fosic/designs/croc/verilator/cve2_tracer.gtkw"
-[timestart] 1639046100
+[timestart] 1639339500
 [size] 3428 1367
 [pos] -1 -1
-*-17.255560 1639548300 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+*-16.955561 1640103300 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 [markername] AA
 [markername] BB
 [markername] CC
@@ -82,6 +82,8 @@ tb_croc_soc.i_croc_soc.i_croc.i_core_wrap.i_core.u_cve2_core.id_stage_i.rel_inst
 @28
 tb_croc_soc.i_croc_soc.i_croc.i_core_wrap.i_core.u_cve2_core.id_stage_i.rel_instr_supported
 tb_croc_soc.i_croc_soc.i_croc.i_core_wrap.i_core.u_cve2_core.id_stage_i.rel_error_q
+@29
+tb_croc_soc.i_croc_soc.i_croc.i_core_wrap.i_core.u_cve2_core.injected_q
 @200
 -
 -LS UNIT

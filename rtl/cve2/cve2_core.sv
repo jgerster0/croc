@@ -719,6 +719,28 @@ module cve2_core import cve2_pkg::*; #(
     .reliable_mode_i (reliable_mode_i)
   );
 
+  `ifndef SYNTHESIS
+  parameter logic         FI_EN            = 1'b0;
+  parameter logic [31:0]  FI_PC            = 32'h1000_0050;
+  parameter logic         FI_UPPER_RF_BANK = 1'b0;
+  parameter logic [4-1:0] FI_RF_REG        = 4'd5;
+  parameter logic [31:0]  FI_WORD          = 32'h1000_0000;
+
+  logic injected_q;
+
+  always_ff @(posedge clk_i or negedge rst_ni) begin
+    if (!rst_ni) begin
+      injected_q <= 1'b0;
+    end else if (FI_EN && !injected_q && reliable_mode_i && (pc_id == FI_PC)) begin
+      injected_q <= 1'b1;
+      if (FI_UPPER_RF_BANK) begin
+        register_file_i.rf_upper_bank_i.rf_reg_q[FI_RF_REG] <= register_file_i.rf_upper_bank_i.rf_reg_q[FI_RF_REG] ^ FI_WORD;
+      end else begin 
+        register_file_i.rf_lower_bank_i.rf_reg_q[FI_RF_REG] <= register_file_i.rf_lower_bank_i.rf_reg_q[FI_RF_REG] ^ FI_WORD;
+      end
+    end
+  end
+  `endif
 
   /////////////////////////////////////////
   // CSRs (Control and Status Registers) //
